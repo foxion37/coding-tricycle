@@ -4,7 +4,7 @@ import { writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { analyzeCommand, redactSecrets, tokenizeCommand } from "./safety.js";
-import { appendEvent, ensureWorkspace, readState, updateState, workspaceDir } from "./workspace.js";
+import { appendEvent, ensureWorkspace, readRecentEvents, readState, updateState, workspaceDir } from "./workspace.js";
 
 const helpText = `Coding Tricycle (ct)
 
@@ -212,8 +212,9 @@ function reviewCommand(args: string[]): number {
 }
 
 function resumeCommand(): number {
-  ensureWorkspace();
   const state = readState();
+  const recentEventLimit = 5;
+  const recentEvents = readRecentEvents(recentEventLimit);
   process.stdout.write(`Coding Tricycle resume\n\n`);
   process.stdout.write(`Goal: ${state.goal ?? "(none)"}\n`);
   process.stdout.write(`Plan: ${state.planPath ?? "(none)"}\n`);
@@ -221,8 +222,27 @@ function resumeCommand(): number {
   process.stdout.write(`Last result: ${state.lastResult ?? "(none)"}\n`);
   process.stdout.write(`Verification: ${state.verification ?? "(none)"}\n`);
   process.stdout.write(`Next action: ${state.nextAction ?? "(none)"}\n`);
+  process.stdout.write(`\nRecent events (last ${recentEventLimit}):\n`);
+  if (recentEvents.length === 0) {
+    process.stdout.write(`- (none)\n`);
+  } else {
+    for (const event of recentEvents) {
+      process.stdout.write(`- ${formatEventSummary(event)}\n`);
+    }
+  }
   process.stdout.write(`Workspace: ${workspaceDir()}\n`);
   return 0;
+}
+
+function formatEventSummary(event: ReturnType<typeof readRecentEvents>[number]): string {
+  const details: string[] = [];
+  if (typeof event.goal === "string") details.push(event.goal);
+  if (typeof event.command === "string") details.push(event.command);
+  if (typeof event.status === "string") details.push(`status=${event.status}`);
+  if (typeof event.nextAction === "string") details.push(`next=${event.nextAction}`);
+
+  const suffix = details.length > 0 ? ` - ${details.join("; ")}` : "";
+  return `${event.createdAt} ${event.type}${suffix}`;
 }
 
 function describeAnalysis(analysis: ReturnType<typeof analyzeCommand>): string {

@@ -55,6 +55,29 @@ export function readState(cwd = process.cwd()): StateRecord {
   return JSON.parse(readFileSync(statePath, "utf8")) as StateRecord;
 }
 
+export function readRecentEvents(limit = 5, cwd = process.cwd()): EventRecord[] {
+  const eventsPath = join(workspaceDir(cwd), "events.jsonl");
+  if (!existsSync(eventsPath)) return [];
+
+  const lines = readFileSync(eventsPath, "utf8")
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0);
+  const events: EventRecord[] = [];
+
+  for (const line of lines) {
+    try {
+      const parsed = JSON.parse(line) as Partial<EventRecord>;
+      if (typeof parsed.type === "string" && typeof parsed.createdAt === "string") {
+        events.push(parsed as EventRecord);
+      }
+    } catch {
+      // Ignore malformed historical lines so resume stays useful and read-only.
+    }
+  }
+
+  return events.slice(-limit);
+}
+
 export function writeState(next: StateRecord, cwd = process.cwd()): StateRecord {
   ensureWorkspace(cwd);
   const state = { ...next, updatedAt: new Date().toISOString() };

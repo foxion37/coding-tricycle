@@ -1,52 +1,65 @@
 # Spec — Coding Tricycle v1
 
-## CLI commands
+## CLI 명령
 
 ```bash
 ct init
-ct plan "Task description" --scope "smallest useful slice" --acceptance "tests pass" --verification "npm test"
+ct plan "작업 설명" --scope "가장 작은 유용한 범위" --acceptance "테스트 통과" --verification "npm test"
 ct run --preview "npm test"
 ct run --safe "git status"
-ct review --status pass --next "Continue with the next small change"
+ct review --status pass --next "다음 작은 변경 계속"
 ct resume
 ```
 
-## Local workspace
+## 로컬 workspace
 
-`ct init` creates `.tricycle/` with:
+`ct init`은 `.tricycle/` 아래에 다음 파일과 폴더를 만듭니다.
 
 - `config.json`
 - `events.jsonl`
 - `state.json`
 - `plans/`
 
-## Command behavior
+## 명령 동작
 
 ### `ct plan`
 
-Creates a markdown plan. Optional flags prefill the plan instead of leaving TODO placeholders:
+Markdown 계획 파일을 만듭니다. 선택 flag를 쓰면 TODO placeholder 대신 계획 내용을 미리 채울 수 있습니다.
 
-- goal
-- scope
-- non-goals
-- acceptance criteria
-- verification
-- next action
+- 목표
+- 범위
+- 비범위
+- 완료 기준
+- 검증 명령
+- 다음 액션
 
-Supported plan flags: `--scope`, `--non-goals`, `--acceptance`, `--verification`, `--next`.
+지원하는 plan flag는 `--scope`, `--non-goals`, `--acceptance`, `--verification`, `--next`입니다.
 
 ### `ct run --preview`
 
-Does not execute the command. It reports parsed command, cwd, risk, and whether it would be eligible for safe-run.
+명령을 실행하지 않습니다. 파싱된 명령, 현재 cwd, 위험도, safe-run 가능 여부를 보여줍니다.
 
 ### `ct run --safe`
 
-Runs only allowlisted low-risk commands after classifier checks. Output is redacted before logging.
+classifier 검사를 통과한 allowlisted low-risk 명령만 실행합니다. stdout/stderr는 로그 저장 전에 redaction됩니다.
 
 ### `ct review`
 
-Writes a review checkpoint with status and next action.
+검토 상태와 다음 액션을 checkpoint로 기록합니다. 지원 상태는 `pass`, `fail`, `note`입니다.
 
 ### `ct resume`
 
-Prints the latest state from `.tricycle/state.json`.
+`.tricycle/state.json`의 최신 상태와 `.tricycle/events.jsonl`의 최근 5개 readable event를 출력합니다.
+
+`ct resume`은 read-only 명령입니다. workspace가 아직 없으면 새 `.tricycle/` 파일을 만들지 않고 `(none)` 상태와 빈 recent events 섹션을 보여줍니다.
+
+출력 필드:
+
+- goal
+- plan
+- last command
+- last result
+- verification
+- next action
+- recent events
+- workspace path

@@ -7,7 +7,8 @@ const read = (path) => readFileSync(path, "utf8");
 test("README keeps the agreed positioning and command flow", () => {
   const readme = read("README.md");
   assert.match(readme, /CLI-first coding sidecar/);
-  assert.match(readme, /Less autopilot, more balance/);
+  assert.match(readme, /완전 자동 조종보다는 균형/);
+  assert.match(readme, /사용자의 주도권을 유지/);
   for (const command of ["ct init", "ct plan", "ct run --preview", "ct run --safe", "ct review", "ct resume"]) {
     assert.match(readme, new RegExp(command));
   }

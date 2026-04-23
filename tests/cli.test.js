@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, readFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -88,6 +88,45 @@ test("review and resume expose next action", () => {
   assert.equal(resume.status, 0, resume.stderr);
   assert.match(resume.stdout, /Goal: Ship skeleton/);
   assert.match(resume.stdout, /Next action: Write tests/);
+});
+
+test("resume stays read-only when workspace is missing", () => {
+  const cwd = tmpProject();
+  const resume = run(["resume"], cwd);
+  assert.equal(resume.status, 0, resume.stderr);
+  assert.match(resume.stdout, /Goal: \(none\)/);
+  assert.match(resume.stdout, /Recent events \(last 5\):/);
+  assert.equal(existsSync(join(cwd, ".tricycle")), false);
+});
+
+test("resume shows the latest five events in compact form", () => {
+  const cwd = tmpProject();
+  mkdirSync(join(cwd, ".tricycle"));
+  writeFileSync(join(cwd, ".tricycle", "state.json"), `${JSON.stringify({
+    goal: "Improve resume",
+    lastCommand: "git status",
+    lastResult: "safe-run exit 0",
+    verification: "safe-run command completed successfully",
+    nextAction: "Review output"
+  }, null, 2)}\n`);
+  const events = [
+    { type: "init", createdAt: "2026-04-23T00:00:00.000Z" },
+    { type: "plan", createdAt: "2026-04-23T00:01:00.000Z", goal: "Improve resume" },
+    { type: "preview", createdAt: "2026-04-23T00:02:00.000Z", command: "npm test" },
+    { type: "safe-run", createdAt: "2026-04-23T00:03:00.000Z", command: "git status" },
+    { type: "review", createdAt: "2026-04-23T00:04:00.000Z", status: "pass", nextAction: "Review output" },
+    { type: "preview", createdAt: "2026-04-23T00:05:00.000Z", command: "npm run build" }
+  ];
+  writeFileSync(join(cwd, ".tricycle", "events.jsonl"), `${events.map((event) => JSON.stringify(event)).join("\n")}\n`);
+
+  const resume = run(["resume"], cwd);
+  assert.equal(resume.status, 0, resume.stderr);
+  assert.match(resume.stdout, /Goal: Improve resume/);
+  assert.match(resume.stdout, /Recent events \(last 5\):/);
+  assert.doesNotMatch(resume.stdout, /00:00:00\.000Z init/);
+  assert.match(resume.stdout, /00:01:00\.000Z plan .*Improve resume/);
+  assert.match(resume.stdout, /00:05:00\.000Z preview .*npm run build/);
+  assert.match(resume.stdout, /status=pass; next=Review output/);
 });
 
 test("run blocks cwd override", () => {
