@@ -10,7 +10,7 @@ const helpText = `Coding Tricycle (ct)
 
 Usage:
   ct init
-  ct plan "Task description"
+  ct plan "Task description" [--scope "..."] [--acceptance "..."]
   ct run --preview "npm test"
   ct run --safe "git status"
   ct review [--status pass|fail|note] [--next "Next action"]
@@ -60,20 +60,63 @@ function initCommand(): number {
 }
 
 function planCommand(args: string[]): number {
-  const goal = args.join(" ").trim();
+  const parsed = parseArgs({
+    args,
+    allowPositionals: true,
+    options: {
+      scope: { type: "string" },
+      "non-goals": { type: "string" },
+      acceptance: { type: "string" },
+      verification: { type: "string" },
+      next: { type: "string" }
+    }
+  });
+
+  const goal = parsed.positionals.join(" ").trim();
   if (!goal) {
-    process.stderr.write('Usage: ct plan "Task description"\n');
+    process.stderr.write('Usage: ct plan "Task description" [--scope "..."] [--acceptance "..."] [--verification "..."] [--next "..."]\n');
     return 1;
   }
+
+  const scope = String(parsed.values.scope ?? "TODO: define the smallest useful slice.");
+  const nonGoals = String(parsed.values["non-goals"] ?? "TODO: list what should not be done now.");
+  const acceptance = String(parsed.values.acceptance ?? "TODO: define how completion will be checked.");
+  const verification = String(parsed.values.verification ?? "TODO: add the command or manual check that proves the result.");
+  const nextAction = String(parsed.values.next ?? "Choose the next small step.");
 
   const dir = ensureWorkspace();
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const planPath = join(dir, "plans", `${timestamp}.md`);
-  const content = `# Coding Tricycle Plan\n\n## Goal\n\n${goal}\n\n## Scope\n\n- TODO: define the smallest useful slice.\n\n## Non-goals\n\n- TODO: list what should not be done now.\n\n## Acceptance Criteria\n\n- TODO: define how completion will be checked.\n\n## Verification\n\n- TODO: add the command or manual check that proves the result.\n\n## Next Action\n\n- TODO: choose the next small step.\n`;
+  const content = `# Coding Tricycle Plan
+
+## Goal
+
+${goal}
+
+## Scope
+
+- ${scope}
+
+## Non-goals
+
+- ${nonGoals}
+
+## Acceptance Criteria
+
+- ${acceptance}
+
+## Verification
+
+- ${verification}
+
+## Next Action
+
+- ${nextAction}
+`;
 
   writeFileSync(planPath, content);
-  appendEvent({ type: "plan", goal, planPath });
-  updateState({ goal, planPath, nextAction: "Define scope, acceptance criteria, and verification." });
+  appendEvent({ type: "plan", goal, planPath, scope, nonGoals, acceptance, verification, nextAction });
+  updateState({ goal, planPath, verification, nextAction });
   process.stdout.write(`Created plan: ${planPath}\n`);
   return 0;
 }
@@ -157,6 +200,10 @@ function reviewCommand(args: string[]): number {
   });
 
   const status = String(parsed.values.status ?? "note");
+  if (!["pass", "fail", "note"].includes(status)) {
+    process.stderr.write("Usage: ct review --status pass|fail|note [--next \"Next action\"]\n");
+    return 1;
+  }
   const nextAction = String(parsed.values.next ?? "Choose the next small step.");
   appendEvent({ type: "review", status, nextAction });
   updateState({ verification: `review status: ${status}`, nextAction });

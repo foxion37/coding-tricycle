@@ -8,9 +8,11 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\"",
+    "ct": "node dist/cli.js",
     "test": "npm run build && node --test tests/*.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "smoke": "npm run build && node dist/cli.js --help"
+    "smoke": "npm run build && node dist/cli.js --help",
+    "prepack": "npm run build"
   },
   "keywords": [
     "cli",

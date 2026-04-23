@@ -4,7 +4,7 @@
 
 ```bash
 ct init
-ct plan "Task description"
+ct plan "Task description" --scope "smallest useful slice" --acceptance "tests pass" --verification "npm test"
 ct run --preview "npm test"
 ct run --safe "git status"
 ct review --status pass --next "Continue with the next small change"
@@ -24,7 +24,7 @@ ct resume
 
 ### `ct plan`
 
-Creates a markdown plan containing:
+Creates a markdown plan. Optional flags prefill the plan instead of leaving TODO placeholders:
 
 - goal
 - scope
@@ -32,6 +32,8 @@ Creates a markdown plan containing:
 - acceptance criteria
 - verification
 - next action
+
+Supported plan flags: `--scope`, `--non-goals`, `--acceptance`, `--verification`, `--next`.
 
 ### `ct run --preview`
 

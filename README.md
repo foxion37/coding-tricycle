@@ -25,7 +25,7 @@ Coding Tricycle v1 is intentionally small:
 npm install
 npm run build
 node dist/cli.js init
-node dist/cli.js plan "Add a small test"
+node dist/cli.js plan "Add a small test" --scope "one focused change" --acceptance "tests pass" --verification "npm test"
 node dist/cli.js run --preview "npm test"
 node dist/cli.js run --safe "git status"
 node dist/cli.js review --status pass --next "Implement the next small change"
@@ -36,7 +36,7 @@ When installed as a package, the same commands are exposed as `ct`:
 
 ```bash
 ct init
-ct plan "Add a small test"
+ct plan "Add a small test" --scope "one focused change" --acceptance "tests pass" --verification "npm test"
 ct run --preview "npm test"
 ct run --safe "git status"
 ct review

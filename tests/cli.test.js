@@ -29,12 +29,28 @@ test("init creates workspace files", () => {
 
 test("plan creates a plan and updates resume state", () => {
   const cwd = tmpProject();
-  const result = run(["plan", "Add docs"], cwd);
+  const result = run([
+    "plan",
+    "Add docs",
+    "--scope",
+    "docs only",
+    "--acceptance",
+    "README updated",
+    "--verification",
+    "npm test",
+    "--next",
+    "review docs"
+  ], cwd);
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /Created plan/);
   const state = JSON.parse(readFileSync(join(cwd, ".tricycle", "state.json"), "utf8"));
   assert.equal(state.goal, "Add docs");
+  assert.equal(state.verification, "npm test");
+  assert.equal(state.nextAction, "review docs");
   assert.equal(existsSync(state.planPath), true);
+  const plan = readFileSync(state.planPath, "utf8");
+  assert.match(plan, /docs only/);
+  assert.match(plan, /README updated/);
 });
 
 test("run --preview does not execute command", () => {
@@ -80,4 +96,13 @@ test("run blocks cwd override", () => {
   const result = run(["run", "--safe", "--cwd", tmpdir(), "pwd"], cwd);
   assert.equal(result.status, 2);
   assert.match(result.stderr, /Blocked cwd override/);
+});
+
+
+test("review rejects invalid status", () => {
+  const cwd = tmpProject();
+  run(["init"], cwd);
+  const result = run(["review", "--status", "maybe"], cwd);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /pass\|fail\|note/);
 });
