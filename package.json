@@ -1,0 +1,37 @@
+{
+  "name": "coding-tricycle",
+  "version": "0.1.0",
+  "description": "A CLI-first coding sidecar for planning, previewing, reviewing, and resuming coding work without giving up control.",
+  "type": "module",
+  "bin": {
+    "ct": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\"",
+    "test": "npm run build && node --test tests/*.test.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "smoke": "npm run build && node dist/cli.js --help"
+  },
+  "keywords": [
+    "cli",
+    "coding",
+    "sidecar",
+    "workflow",
+    "stability"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "typescript": "^5.9.3"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "examples",
+    "README.md",
+    "CHANGELOG.md"
+  ]
+}
