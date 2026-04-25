@@ -5,6 +5,7 @@
 ```bash
 ct init
 ct layout --mode compact
+pbpaste | ct explain --stdin
 ct plan "작업 설명" --scope "가장 작은 유용한 범위" --acceptance "테스트 통과" --verification "npm test"
 ct run --preview "npm test"
 ct run --safe "git status"
@@ -34,6 +35,23 @@ ct resume
 - `panel`: 에이전트 원문과 CT 번역/개념장 영역을 분리한 패널형 시안을 보여줍니다.
 - `on-demand`: 평소에는 숨기고 사용자가 필요할 때만 호출하는 방식을 보여줍니다.
 - `all`: 세 가지 시안을 모두 보여줍니다.
+
+### `ct explain --stdin`
+
+에이전트 응답을 stdin으로 받아 짧은 CT thin card 힌트를 출력하는 read-only 명령입니다. 실제 LLM API를 호출하지 않고 deterministic keyword rule만 사용합니다. `.tricycle/` workspace를 만들지 않습니다.
+
+지원 style:
+
+- `card`: 기본 thin card 출력
+- `soft`: 구분선 없는 footer 출력
+
+초기 MVP가 구분하는 신호:
+
+- module/path alias/tsconfig 문제
+- TypeScript typecheck 문제
+- 테스트 실패
+- 권한 또는 파일 없음 문제
+- refactor 요청
 
 ### `ct plan`
 

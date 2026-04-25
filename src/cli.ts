@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { analyzeCommand, redactSecrets, tokenizeCommand } from "./safety.js";
@@ -12,12 +12,13 @@ Usage:
   ct init
   ct plan "Task description" [--scope "..."] [--acceptance "..."]
   ct layout [--mode compact|panel|on-demand|all] [--style card|soft]
+  ct explain --stdin [--style card|soft]
   ct run --preview "npm test"
   ct run --safe "git status"
   ct review [--status pass|fail|note] [--next "Next action"]
   ct resume
 
-v1 is limited to context translation layout, planning, preview, allowlisted safe-run, review, and resume.
+v1 is limited to deterministic context translation, layout, planning, preview, allowlisted safe-run, review, and resume.
 Destructive execution is intentionally out of scope.
 `;
 
@@ -38,6 +39,8 @@ function main(argv = process.argv.slice(2)): number {
         return planCommand(rest);
       case "layout":
         return layoutCommand(rest);
+      case "explain":
+        return explainCommand(rest);
       case "run":
         return runCommand(rest);
       case "review":
@@ -91,6 +94,37 @@ function layoutCommand(args: string[]): number {
   if (mode === "on-demand" || mode === "all") sections.push(formatOnDemandLayout());
 
   process.stdout.write(`${sections.join("\n\n")}\n`);
+  return 0;
+}
+
+function explainCommand(args: string[]): number {
+  const parsed = parseArgs({
+    args,
+    allowPositionals: false,
+    options: {
+      stdin: { type: "boolean", default: false },
+      style: { type: "string", default: "card" }
+    }
+  });
+
+  if (parsed.values.stdin !== true) {
+    process.stderr.write("Usage: ct explain --stdin [--style card|soft]\n");
+    return 1;
+  }
+
+  const layoutStyle = String(parsed.values.style ?? "card");
+  if (!["card", "soft"].includes(layoutStyle)) {
+    process.stderr.write("Usage: ct explain --stdin [--style card|soft]\n");
+    return 1;
+  }
+
+  const input = readFileSync(0, "utf8").trim();
+  if (!input) {
+    process.stderr.write("ct explain --stdin needs piped agent output.\n");
+    return 1;
+  }
+
+  process.stdout.write(`${formatExplainResult(input, layoutStyle)}\n`);
   return 0;
 }
 
@@ -271,12 +305,12 @@ function resumeCommand(): number {
 
 function formatCompactFooterLayout(layoutStyle: string): string {
   const header = `${style("✦ ct context", "cyan", "bold")} ${style("(｡•̀ᴗ-)✧", "gray")}`;
-  const rows = [
-    `${style("⚠ 에러", "red")}: 코드 로직보다 ${style("파일 경로 설정", "yellow")} 문제일 가능성이 큽니다.`,
-    `${style("◆ 개념", "magenta")}: ${style("path alias", "magenta", "bold")} = 긴 파일 경로를 짧은 별명으로 부르는 설정.`,
-    `${style("› 커맨드 힌트", "blue")}: ${style("tsconfig.json", "yellow")}의 ${style("paths", "yellow")}와 실제 파일 위치를 비교하세요.`,
-    `${style("☘ 학습 후보", "green")}: ${style("TypeScript", "blue")}, ${style("import", "cyan")}, ${style("compiler", "gray")}`
-  ];
+  const rows = formatContextRows({
+    error: `코드 로직보다 ${style("파일 경로 설정", "yellow")} 문제일 가능성이 큽니다.`,
+    concept: `${style("path alias", "magenta", "bold")} = 긴 파일 경로를 짧은 별명으로 부르는 설정.`,
+    command: `${style("tsconfig.json", "yellow")}의 ${style("paths", "yellow")}와 실제 파일 위치를 비교하세요.`,
+    study: `${style("TypeScript", "blue")}, ${style("import", "cyan")}, ${style("compiler", "gray")}`
+  });
 
   return [
     `Layout A - Compact footer (${style(layoutStyle === "card" ? "thin card default" : "soft footer", "green")}, ${style("friendly hints", "cyan")})`,
@@ -285,8 +319,110 @@ function formatCompactFooterLayout(layoutStyle: string): string {
     `The build failed because ${style("TypeScript", "blue")} cannot resolve the ${style("module path alias", "magenta")}.`,
     `Check ${style("tsconfig.json", "yellow")} paths and the import target before changing runtime code.`,
     "",
-    ...(layoutStyle === "card" ? formatThinCard(header, rows) : formatSoftFooter(header, rows))
+    ...formatContextBlock(header, rows, layoutStyle)
   ].join("\n");
+}
+
+interface ExplainHints {
+  error: string;
+  concept: string;
+  command: string;
+  study: string;
+}
+
+function formatExplainResult(input: string, layoutStyle: string): string {
+  const hints = inferExplainHints(input);
+  const header = `${style("✦ ct context", "cyan", "bold")} ${style("(｡•̀ᴗ-)✧", "gray")}`;
+  return [
+    `CT explain (${style("deterministic stdin MVP", "green")})`,
+    "",
+    ...formatContextBlock(header, formatContextRows(hints), layoutStyle)
+  ].join("\n");
+}
+
+function inferExplainHints(input: string): ExplainHints {
+  const normalized = input.toLowerCase();
+  const terms = collectStudyTerms(input);
+
+  if (/(cannot find module|cannot resolve|module not found|path alias|tsconfig|paths)/i.test(input)) {
+    return {
+      error: "파일을 못 찾는 문제일 가능성이 큽니다. 코드 내용보다 import 경로와 설정을 먼저 보세요.",
+      concept: "path alias = 긴 파일 경로를 짧은 별명으로 부르는 설정입니다.",
+      command: "tsconfig.json의 paths와 실제 파일 위치가 서로 맞는지 비교하세요.",
+      study: terms.join(", ")
+    };
+  }
+
+  if (/(type error|typecheck|tsc|typescript|assignable|property .* does not exist)/i.test(input)) {
+    return {
+      error: "타입 약속이 실제 코드와 어긋난 상태일 가능성이 큽니다.",
+      concept: "typecheck = 실행 전에 값의 모양이 약속과 맞는지 검사하는 단계입니다.",
+      command: "에러가 가리키는 타입 정의와 실제 값을 나란히 비교하세요.",
+      study: terms.join(", ")
+    };
+  }
+
+  if (/(test failed|failing test|assert|expected|actual|node --test|jest|vitest|npm test)/i.test(input)) {
+    return {
+      error: "기능 전체보다 테스트가 기대한 출력과 실제 출력의 차이를 먼저 좁혀보세요.",
+      concept: "assertion = 코드 결과가 기대값과 같은지 확인하는 약속입니다.",
+      command: "실패한 테스트 이름, expected, actual을 순서대로 읽어보세요.",
+      study: terms.join(", ")
+    };
+  }
+
+  if (/(permission denied|eacces|enoent|not found|no such file or directory)/i.test(input)) {
+    return {
+      error: "실행 권한이나 파일 위치 문제일 가능성이 큽니다.",
+      concept: "runtime path = 프로그램이 실제로 파일을 찾는 위치입니다.",
+      command: "현재 cwd, 파일 존재 여부, 실행 권한을 차례대로 확인하세요.",
+      study: terms.join(", ")
+    };
+  }
+
+  if (normalized.includes("refactor")) {
+    return {
+      error: "당장 고장보다 구조를 더 읽기 쉽게 나누려는 요청입니다.",
+      concept: "refactor = 동작은 유지하고 코드 구조를 정리하는 작업입니다.",
+      command: "먼저 기존 테스트로 동작을 잠근 뒤 작은 단위로 바꾸세요.",
+      study: terms.join(", ")
+    };
+  }
+
+  return {
+    error: "지금은 원문 전체보다 다음 행동을 정리하는 단계로 보면 됩니다.",
+    concept: "context translation = 긴 에이전트 출력을 지금 필요한 판단 단서로 줄이는 일입니다.",
+    command: "원문에서 에러, 바꿀 파일, 검증 명령을 각각 한 줄씩 표시하세요.",
+    study: terms.join(", ")
+  };
+}
+
+function collectStudyTerms(input: string): string[] {
+  const candidates: Array<[RegExp, string]> = [
+    [/typescript|tsc|tsconfig/i, "TypeScript"],
+    [/import|module|path alias|paths/i, "import"],
+    [/compiler|compile|build/i, "compiler"],
+    [/test|assert|expected|actual/i, "test"],
+    [/refactor/i, "refactor"],
+    [/permission|eacces|chmod/i, "permission"],
+    [/enoent|not found|file|directory/i, "file path"],
+    [/stdin|pipe|pbpaste/i, "stdin"]
+  ];
+  const terms = candidates.filter(([pattern]) => pattern.test(input)).map(([, term]) => term);
+  return terms.length > 0 ? [...new Set(terms)].slice(0, 4) : ["error", "command", "context"];
+}
+
+function formatContextRows(hints: ExplainHints): string[] {
+  return [
+    `${style("⚠ 에러", "red")}: ${hints.error}`,
+    `${style("◆ 개념", "magenta")}: ${hints.concept}`,
+    `${style("› 커맨드 힌트", "blue")}: ${hints.command}`,
+    `${style("☘ 학습 후보", "green")}: ${hints.study}`
+  ];
+}
+
+function formatContextBlock(header: string, rows: string[], layoutStyle: string): string[] {
+  return layoutStyle === "card" ? formatThinCard(header, rows) : formatSoftFooter(header, rows);
 }
 
 function formatThinCard(header: string, rows: string[]): string[] {

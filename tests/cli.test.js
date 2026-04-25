@@ -7,10 +7,11 @@ import { test } from "node:test";
 
 const cli = new URL("../dist/cli.js", import.meta.url).pathname;
 
-function run(args, cwd) {
+function run(args, cwd, options = {}) {
   return spawnSync(process.execPath, [cli, ...args], {
     cwd,
-    encoding: "utf8"
+    encoding: "utf8",
+    input: options.input
   });
 }
 
@@ -99,6 +100,48 @@ test("layout rejects unknown styles", () => {
   const result = run(["layout", "--mode", "compact", "--style", "boxy"], cwd);
   assert.equal(result.status, 1);
   assert.match(result.stderr, /card\|soft/);
+});
+
+test("explain --stdin translates module path errors into a thin card", () => {
+  const cwd = tmpProject();
+  const result = run(["explain", "--stdin"], cwd, {
+    input: "The build failed because TypeScript cannot resolve module path alias @/lib/foo. Check tsconfig.json paths."
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /CT explain/);
+  assert.match(result.stdout, /deterministic stdin MVP/);
+  assert.match(result.stdout, /✦ ct context/);
+  assert.match(result.stdout, /파일을 못 찾는 문제/);
+  assert.match(result.stdout, /path alias/);
+  assert.match(result.stdout, /tsconfig\.json/);
+  assert.match(result.stdout, /TypeScript/);
+  assert.equal(existsSync(join(cwd, ".tricycle")), false);
+});
+
+test("explain --stdin can use soft style", () => {
+  const cwd = tmpProject();
+  const result = run(["explain", "--stdin", "--style", "soft"], cwd, {
+    input: "npm test failed. Expected true but actual false in an assertion."
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /assertion/);
+  assert.match(result.stdout, /expected/);
+  assert.doesNotMatch(result.stdout, /──/);
+});
+
+test("explain requires stdin and a valid style", () => {
+  const cwd = tmpProject();
+  const missingFlag = run(["explain"], cwd);
+  assert.equal(missingFlag.status, 1);
+  assert.match(missingFlag.stderr, /ct explain --stdin/);
+
+  const badStyle = run(["explain", "--stdin", "--style", "loud"], cwd, { input: "hello" });
+  assert.equal(badStyle.status, 1);
+  assert.match(badStyle.stderr, /card\|soft/);
+
+  const emptyInput = run(["explain", "--stdin"], cwd, { input: "   " });
+  assert.equal(emptyInput.status, 1);
+  assert.match(emptyInput.stderr, /needs piped agent output/);
 });
 
 test("run --preview does not execute command", () => {

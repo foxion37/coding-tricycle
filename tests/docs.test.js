@@ -9,7 +9,7 @@ test("README keeps the agreed positioning and command flow", () => {
   assert.match(readme, /CLI-first context translation sidecar/);
   assert.match(readme, /완전 자동 조종보다는 맥락 통역/);
   assert.match(readme, /짧은 맥락 압축/);
-  for (const command of ["ct init", "ct layout", "ct plan", "ct run --preview", "ct run --safe", "ct review", "ct resume"]) {
+  for (const command of ["ct init", "ct layout", "ct explain --stdin", "ct plan", "ct run --preview", "ct run --safe", "ct review", "ct resume"]) {
     assert.match(readme, new RegExp(command));
   }
 });
@@ -27,6 +27,7 @@ test("public docs are Korean-first and keep the public boundary", () => {
   assert.match(prd, /제품 요구사항/);
   assert.match(prd, /context translation sidecar/);
   assert.match(prd, /에이전트의 말을 이해/);
+  assert.match(prd, /ct explain --stdin/);
   assert.match(operating, /공개 문서/);
   assert.match(operating, /내부 session handoff 원문/);
 });

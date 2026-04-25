@@ -31,6 +31,7 @@ Coding Tricycle은 AI 에이전트가 쏟아내는 개발 맥락을 사용자가
 
 - `ct init`: 로컬 `.tricycle/` workspace 생성
 - `ct layout`: 에이전트 응답 아래/옆/온디맨드에 맥락 번역 레이어가 나타나는 방식을 터미널에서 preview
+- `ct explain --stdin`: 에이전트 응답을 stdin으로 받아 deterministic CT thin card 힌트 생성
 - `ct plan`: 작업 목표, 범위, 완료 기준, 검증 명령, 다음 액션 기록
 - `ct run --preview`: 명령을 실행하지 않고 의도와 위험도 확인
 - `ct run --safe`: allowlisted low-risk 명령만 실행하고 결과 기록
@@ -40,8 +41,8 @@ Coding Tricycle은 AI 에이전트가 쏟아내는 개발 맥락을 사용자가
 ## v1 완료 기준
 
 1. README가 context translation sidecar 문맥으로 Coding Tricycle을 설명합니다.
-2. 명령 흐름에 `ct init`, `ct layout`, `ct plan`, `ct run --preview`, `ct run --safe`, `ct review`, `ct resume`이 포함됩니다.
+2. 명령 흐름에 `ct init`, `ct layout`, `ct explain --stdin`, `ct plan`, `ct run --preview`, `ct run --safe`, `ct review`, `ct resume`이 포함됩니다.
 3. dangerous command classification, cwd guard, redaction 규칙이 문서화됩니다.
 4. `ct run --safe`는 allowlisted low-risk 명령만 실행합니다.
 5. session log에는 goal, commands, results, verification, next action, recent events가 남습니다.
-6. `ct layout`과 `ct resume`은 read-only로 동작하며 workspace가 없어도 새 파일을 만들지 않습니다.
+6. `ct layout`, `ct explain --stdin`, `ct resume`은 read-only로 동작하며 workspace가 없어도 새 파일을 만들지 않습니다.
