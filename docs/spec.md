@@ -4,6 +4,7 @@
 
 ```bash
 ct init
+ct layout --mode compact
 ct plan "작업 설명" --scope "가장 작은 유용한 범위" --acceptance "테스트 통과" --verification "npm test"
 ct run --preview "npm test"
 ct run --safe "git status"
@@ -21,6 +22,18 @@ ct resume
 - `plans/`
 
 ## 명령 동작
+
+### `ct layout`
+
+터미널에서 CT 맥락 번역 레이어가 어디에 나타날지 비교하는 read-only 미리보기입니다. 실제 에이전트 응답을 읽거나 `.tricycle/` workspace를 만들지 않습니다.
+
+지원 mode:
+
+- `compact`: 에이전트 응답 아래에 thin card 컬러 힌트 박스를 붙입니다. 에러, 개념, 커맨드, 학습 후보를 구분해 보여줍니다.
+- `compact --style soft`: 구분선 없는 footer 스타일을 보여줍니다.
+- `panel`: 에이전트 원문과 CT 번역/개념장 영역을 분리한 패널형 시안을 보여줍니다.
+- `on-demand`: 평소에는 숨기고 사용자가 필요할 때만 호출하는 방식을 보여줍니다.
+- `all`: 세 가지 시안을 모두 보여줍니다.
 
 ### `ct plan`
 

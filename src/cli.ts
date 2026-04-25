@@ -11,12 +11,13 @@ const helpText = `Coding Tricycle (ct)
 Usage:
   ct init
   ct plan "Task description" [--scope "..."] [--acceptance "..."]
+  ct layout [--mode compact|panel|on-demand|all] [--style card|soft]
   ct run --preview "npm test"
   ct run --safe "git status"
   ct review [--status pass|fail|note] [--next "Next action"]
   ct resume
 
-v1 is limited to planning, preview, allowlisted safe-run, review, and resume.
+v1 is limited to context translation layout, planning, preview, allowlisted safe-run, review, and resume.
 Destructive execution is intentionally out of scope.
 `;
 
@@ -35,6 +36,8 @@ function main(argv = process.argv.slice(2)): number {
         return initCommand();
       case "plan":
         return planCommand(rest);
+      case "layout":
+        return layoutCommand(rest);
       case "run":
         return runCommand(rest);
       case "review":
@@ -56,6 +59,38 @@ function initCommand(): number {
   const dir = ensureWorkspace();
   appendEvent({ type: "init", workspace: basename(dir) });
   process.stdout.write(`Initialized Coding Tricycle workspace at ${dir}\n`);
+  return 0;
+}
+
+function layoutCommand(args: string[]): number {
+  const parsed = parseArgs({
+    args,
+    allowPositionals: false,
+    options: {
+      mode: { type: "string", default: "all" },
+      style: { type: "string", default: "card" }
+    }
+  });
+
+  const mode = String(parsed.values.mode ?? "all");
+  const layoutStyle = String(parsed.values.style ?? "card");
+  const validModes = ["compact", "panel", "on-demand", "all"];
+  if (!validModes.includes(mode)) {
+    process.stderr.write("Usage: ct layout [--mode compact|panel|on-demand|all] [--style card|soft]\n");
+    return 1;
+  }
+
+  if (!["card", "soft"].includes(layoutStyle)) {
+    process.stderr.write("Usage: ct layout [--mode compact|panel|on-demand|all] [--style card|soft]\n");
+    return 1;
+  }
+
+  const sections: string[] = [];
+  if (mode === "compact" || mode === "all") sections.push(formatCompactFooterLayout(layoutStyle));
+  if (mode === "panel" || mode === "all") sections.push(formatSidePanelLayout());
+  if (mode === "on-demand" || mode === "all") sections.push(formatOnDemandLayout());
+
+  process.stdout.write(`${sections.join("\n\n")}\n`);
   return 0;
 }
 
@@ -233,6 +268,158 @@ function resumeCommand(): number {
   process.stdout.write(`Workspace: ${workspaceDir()}\n`);
   return 0;
 }
+
+function formatCompactFooterLayout(layoutStyle: string): string {
+  const header = `${style("✦ ct context", "cyan", "bold")} ${style("(｡•̀ᴗ-)✧", "gray")}`;
+  const rows = [
+    `${style("⚠ 에러", "red")}: 코드 로직보다 ${style("파일 경로 설정", "yellow")} 문제일 가능성이 큽니다.`,
+    `${style("◆ 개념", "magenta")}: ${style("path alias", "magenta", "bold")} = 긴 파일 경로를 짧은 별명으로 부르는 설정.`,
+    `${style("› 커맨드 힌트", "blue")}: ${style("tsconfig.json", "yellow")}의 ${style("paths", "yellow")}와 실제 파일 위치를 비교하세요.`,
+    `${style("☘ 학습 후보", "green")}: ${style("TypeScript", "blue")}, ${style("import", "cyan")}, ${style("compiler", "gray")}`
+  ];
+
+  return [
+    `Layout A - Compact footer (${style(layoutStyle === "card" ? "thin card default" : "soft footer", "green")}, ${style("friendly hints", "cyan")})`,
+    "",
+    "[Agent]",
+    `The build failed because ${style("TypeScript", "blue")} cannot resolve the ${style("module path alias", "magenta")}.`,
+    `Check ${style("tsconfig.json", "yellow")} paths and the import target before changing runtime code.`,
+    "",
+    ...(layoutStyle === "card" ? formatThinCard(header, rows) : formatSoftFooter(header, rows))
+  ].join("\n");
+}
+
+function formatThinCard(header: string, rows: string[]): string[] {
+  return [
+    `  ${style("──", "gray")} ${header} ${style("────────────────────────────", "gray")}`,
+    ...rows.map((row) => `  ${style("│", "gray")} ${row}`),
+    `  ${style("└────────────────────────────────────────", "gray")}`
+  ];
+}
+
+function formatSoftFooter(header: string, rows: string[]): string[] {
+  return [
+    `  ${header}`,
+    ...rows.map((row) => `  ${row}`)
+  ];
+}
+
+function formatSidePanelLayout(): string {
+  const left = [
+    "Agent output",
+    "The test runner cannot find the setup file.",
+    "It may be caused by a config path mismatch.",
+    "Open the test config before editing tests."
+  ];
+  const right = [
+    "CT panel",
+    "쉽게 말하면: 테스트 준비 파일 경로가 틀렸을 수 있어요.",
+    "확인할 것: test config, setup file path.",
+    "저장 개념: setup file, config path.",
+    "복습 후보: '설정 파일은 왜 실행 전에 중요할까?'"
+  ];
+
+  const rows = Math.max(left.length, right.length);
+  const output = ["Layout B - Separate side panel / web desk", ""];
+  output.push("+--------------------------------------+--------------------------------------+");
+  for (let index = 0; index < rows; index += 1) {
+    output.push(`| ${padCell(left[index] ?? "", 36)} | ${padCell(right[index] ?? "", 36)} |`);
+  }
+  output.push("+--------------------------------------+--------------------------------------+");
+  output.push("Use when the user wants deeper context, accumulated concepts, and study mode.");
+  return output.join("\n");
+}
+
+function formatOnDemandLayout(): string {
+  return [
+    "Layout C - On-demand skill call",
+    "",
+    "[Agent]",
+    "Refactor the validation boundary so the parser rejects invalid states earlier.",
+    "",
+    "[CT]",
+    "No automatic translation is shown.",
+    "User calls: ct explain --last / ct translate / '이거 쉽게 설명해줘'",
+    "",
+    "Best for long agent sessions where context window pressure matters most."
+  ].join("\n");
+}
+
+function padCell(value: string, width: number): string {
+  const trimmed = truncateDisplayWidth(value, width);
+  return `${trimmed}${" ".repeat(Math.max(0, width - displayWidth(trimmed)))}`;
+}
+
+function truncateDisplayWidth(value: string, width: number): string {
+  if (displayWidth(value) <= width) return value;
+
+  const suffix = "...";
+  const target = Math.max(0, width - suffix.length);
+  let output = "";
+  let used = 0;
+
+  for (const char of value) {
+    const charWidth = displayWidth(char);
+    if (used + charWidth > target) break;
+    output += char;
+    used += charWidth;
+  }
+
+  return `${output}${suffix}`;
+}
+
+function displayWidth(value: string): number {
+  let width = 0;
+  for (const char of value) {
+    const codePoint = char.codePointAt(0) ?? 0;
+    width += isWideCodePoint(codePoint) ? 2 : 1;
+  }
+  return width;
+}
+
+function isWideCodePoint(codePoint: number): boolean {
+  return (
+    (codePoint >= 0x1100 && codePoint <= 0x115f) ||
+    (codePoint >= 0x2329 && codePoint <= 0x232a) ||
+    (codePoint >= 0x2e80 && codePoint <= 0xa4cf) ||
+    (codePoint >= 0xac00 && codePoint <= 0xd7a3) ||
+    (codePoint >= 0xf900 && codePoint <= 0xfaff) ||
+    (codePoint >= 0xfe10 && codePoint <= 0xfe19) ||
+    (codePoint >= 0xfe30 && codePoint <= 0xfe6f) ||
+    (codePoint >= 0xff00 && codePoint <= 0xff60) ||
+    (codePoint >= 0xffe0 && codePoint <= 0xffe6)
+  );
+}
+
+function shouldUseColor(): boolean {
+  if (process.env.NO_COLOR) return false;
+  if (process.env.FORCE_COLOR && process.env.FORCE_COLOR !== "0") return true;
+  return Boolean(process.stdout.isTTY);
+}
+
+type StyleName = "bold" | "gray" | "red" | "green" | "yellow" | "blue" | "magenta" | "cyan";
+
+function style(value: string, ...styles: StyleName[]): string {
+  if (!shouldUseColor()) return value;
+  const open = styles.map((name) => ansiStyles[name][0]).join("");
+  const close = styles
+    .slice()
+    .reverse()
+    .map((name) => ansiStyles[name][1])
+    .join("");
+  return `${open}${value}${close}`;
+}
+
+const ansiStyles: Record<StyleName, readonly [string, string]> = {
+  bold: ["\u001B[1m", "\u001B[22m"],
+  gray: ["\u001B[90m", "\u001B[39m"],
+  red: ["\u001B[31m", "\u001B[39m"],
+  green: ["\u001B[32m", "\u001B[39m"],
+  yellow: ["\u001B[33m", "\u001B[39m"],
+  blue: ["\u001B[34m", "\u001B[39m"],
+  magenta: ["\u001B[35m", "\u001B[39m"],
+  cyan: ["\u001B[36m", "\u001B[39m"]
+};
 
 function formatEventSummary(event: ReturnType<typeof readRecentEvents>[number]): string {
   const details: string[] = [];

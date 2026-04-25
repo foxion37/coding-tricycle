@@ -1,18 +1,19 @@
 # Coding Tricycle
 
-Coding Tricycle은 코딩 작업을 계획하고, 명령을 실행 전에 미리 확인하고, 안전한 명령만 캡처하고, 결과를 검토하고, 다음 세션에서 이어갈 수 있게 돕는 **CLI-first coding sidecar**입니다.
+Coding Tricycle은 AI 에이전트가 쏟아내는 개발 맥락을 사용자가 이해 가능한 말로 압축 번역하고, 배운 개념을 축적하게 돕는 **CLI-first context translation sidecar**입니다.
 
-완전 자동 조종보다는 균형에 가깝습니다. 사용자의 주도권을 유지하면서 코딩 흐름이 넘어지지 않도록 받쳐주는 작은 workbench입니다.
+완전 자동 조종보다는 맥락 통역에 가깝습니다. 사용자가 에이전트의 말을 이해하고, 자기 말로 개념을 익히고, 다음 행동을 판단할 수 있게 받쳐주는 작은 workbench입니다.
 
 ## 왜 필요한가
 
-많은 코딩 도구는 바로 실행으로 뛰어들기 쉽지만, 계획, 안전한 명령 경계, 검토 지점, 재개 가능한 기록을 한 흐름으로 유지하기는 어렵습니다. Coding Tricycle은 이 네 가지를 작은 로컬 CLI workflow 안에 묶어 둡니다.
+AI 에이전트는 빠르게 많은 말을 쏟아내지만, 바이브코더나 초보 개발자는 그 말의 숨은 전제, 개발 용어, 다음 행동의 이유를 놓치기 쉽습니다. Coding Tricycle은 전체 응답을 다시 길게 설명하지 않고, 사용자가 지금 놓치기 쉬운 맥락만 짧게 번역하는 것을 목표로 합니다.
 
 ## v1 범위
 
 Coding Tricycle v1은 의도적으로 작게 시작합니다.
 
 - `ct init`은 로컬 `.tricycle/` workspace를 만듭니다.
+- `ct layout`은 에이전트 응답 아래/옆/온디맨드에 CT 맥락 번역 레이어가 어떻게 보일지 미리 보여줍니다.
 - `ct plan`은 집중할 작업 계획을 기록합니다.
 - `ct run --preview`는 명령을 실제로 실행하지 않고 의도와 위험도를 보여줍니다.
 - `ct run --safe`는 allowlist를 통과한 low-risk 명령만 실행하고 결과를 캡처합니다.
@@ -25,6 +26,7 @@ Coding Tricycle v1은 의도적으로 작게 시작합니다.
 npm install
 npm run build
 node dist/cli.js init
+node dist/cli.js layout
 node dist/cli.js plan "작은 테스트 추가" --scope "작은 변경 하나" --acceptance "테스트 통과" --verification "npm test"
 node dist/cli.js run --preview "npm test"
 node dist/cli.js run --safe "git status"
@@ -36,12 +38,23 @@ node dist/cli.js resume
 
 ```bash
 ct init
+ct layout --mode compact
 ct plan "작은 테스트 추가" --scope "작은 변경 하나" --acceptance "테스트 통과" --verification "npm test"
 ct run --preview "npm test"
 ct run --safe "git status"
 ct review
 ct resume
 ```
+
+## 터미널 맥락 번역 레이아웃
+
+`ct layout`은 실제 번역 엔진을 실행하지 않고, CT가 에이전트 응답 주변에 나타나는 위치만 비교하는 read-only 미리보기입니다. 터미널 컨텍스트를 잡아먹지 않기 위해 기본 원칙은 "전체 번역이 아니라 짧은 맥락 압축"입니다.
+
+- `compact`: 에이전트 응답 아래에 3~4줄짜리 thin card 컬러 힌트 박스를 붙입니다. 에러, 개념, 커맨드, 학습 후보를 구분해 초보자가 덜 무섭게 읽도록 돕는 기본 추천안입니다.
+- `compact --style soft`: 구분선 없이 더 조용한 footer로 보여줍니다.
+- `panel`: 긴 설명, 개념장, 복습 문제를 별도 패널이나 웹앱으로 분리하는 형태입니다.
+- `on-demand`: 평소에는 숨기고 사용자가 필요할 때만 `ct explain`/`ct translate`류 명령으로 호출하는 형태입니다.
+- `all`: 세 가지 시안을 한 번에 보여줍니다.
 
 ## 안전 모델
 

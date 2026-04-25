@@ -1,7 +1,7 @@
 {
   "name": "coding-tricycle",
   "version": "0.1.0",
-  "description": "A CLI-first coding sidecar for planning, previewing, reviewing, and resuming coding work without giving up control.",
+  "description": "A CLI-first context translation sidecar for understanding AI agent coding output.",
   "type": "module",
   "bin": {
     "ct": "./dist/cli.js"
@@ -17,6 +17,8 @@
   "keywords": [
     "cli",
     "coding",
+    "context",
+    "translator",
     "sidecar",
     "workflow",
     "stability"

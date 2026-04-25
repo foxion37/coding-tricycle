@@ -53,6 +53,54 @@ test("plan creates a plan and updates resume state", () => {
   assert.match(plan, /README updated/);
 });
 
+test("layout previews compact terminal translation placement", () => {
+  const cwd = tmpProject();
+  const result = run(["layout", "--mode", "compact"], cwd);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Layout A - Compact footer/);
+  assert.match(result.stdout, /thin card default/);
+  assert.match(result.stdout, /friendly hints/);
+  assert.match(result.stdout, /✦ ct context/);
+  assert.match(result.stdout, /──/);
+  assert.match(result.stdout, /│/);
+  assert.match(result.stdout, /⚠ 에러/);
+  assert.match(result.stdout, /커맨드 힌트/);
+  assert.match(result.stdout, /학습 후보/);
+  assert.equal(existsSync(join(cwd, ".tricycle")), false);
+});
+
+test("layout compact can still preview the softer footer style", () => {
+  const cwd = tmpProject();
+  const result = run(["layout", "--mode", "compact", "--style", "soft"], cwd);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /soft footer/);
+  assert.match(result.stdout, /✦ ct context/);
+  assert.doesNotMatch(result.stdout, /──/);
+});
+
+test("layout can preview all terminal placement options", () => {
+  const cwd = tmpProject();
+  const result = run(["layout"], cwd);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Layout A - Compact footer/);
+  assert.match(result.stdout, /Layout B - Separate side panel/);
+  assert.match(result.stdout, /Layout C - On-demand skill call/);
+});
+
+test("layout rejects unknown modes", () => {
+  const cwd = tmpProject();
+  const result = run(["layout", "--mode", "floating"], cwd);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /compact\|panel\|on-demand\|all/);
+});
+
+test("layout rejects unknown styles", () => {
+  const cwd = tmpProject();
+  const result = run(["layout", "--mode", "compact", "--style", "boxy"], cwd);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /card\|soft/);
+});
+
 test("run --preview does not execute command", () => {
   const cwd = tmpProject();
   run(["init"], cwd);
